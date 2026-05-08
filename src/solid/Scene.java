@@ -74,18 +74,18 @@ public class Scene {
         Mat4 sphereM = new Mat4Transl(-0.2, 0.0, 0.0);
 
         solids.add(
-                new Cube(3, new Col(0xff4444))
-                        .withTexture(new TextureMapper(""))
+                new Cube(3, new Col(0xeeca11))
+                        .withTexture(new TextureMapper("textures/wood.jpg"))
                         .withModel(cubeM)
         );
         solids.add(
-                new Cylinder(4.5, 10, new Point3D(0, 1, 1, 2.5), new Col(0xff0044))
-                        .withTexture(new TextureMapper(""))
+                new Cylinder(1, 4, new Point3D(5, 1.5, 1, 2.5), new Col(0x00f044))
+                        .withTexture(new TextureMapper("textures/stone.png"))
                         .withModel(cylinderM)
         );
         solids.add(
-                new Sphere(2.0, 10, 10, new Point3D(2, 2, 2), new Col(0xff4400))
-                        .withTexture(new TextureMapper(""))
+                new Sphere(2.0, new Point3D(2, 2, -2), new Col(0x4344ff))
+                        .withTexture(new TextureMapper("textures/wood.jpg"))
                         .withModel(sphereM)
         );
 

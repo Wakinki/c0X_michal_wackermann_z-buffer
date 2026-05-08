@@ -26,7 +26,7 @@ public class SaddlePlane extends Solid {
     public SaddlePlane(double sizeX, double sizeY, double height,
                        int steps, Point3D center, Col col) {
         buildSaddle(sizeX, sizeY, height, steps, center);
-        color = new Col(col);
+
     }
 
     private void buildSaddle(double sx, double sy, double h,
@@ -45,11 +45,11 @@ public class SaddlePlane extends Solid {
                 //sedlová funkce
                 double z = h * ((x * x) / (sx * sx) - (y * y) / (sy * sy));
 
-                vb.add(new Point3D(
-                        c.getX() + x,
-                        c.getY() + y,
-                        c.getZ() + z
-                ));
+//                vb.add(new Point3D(
+//                        c.getX() + x,
+//                        c.getY() + y,
+//                        c.getZ() + z
+//                ));
             }
         }
 

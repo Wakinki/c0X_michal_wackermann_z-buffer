@@ -60,29 +60,42 @@ public class Panel extends JPanel {
         g.setFont(new Font(Font.MONOSPACED, Font.PLAIN, 16));
 
         int x = 10;
-        int y = 20;
-        int lineHeight = 16;
+        int y = 15;
+        int lineHeight = 12;
 
         String modeText = "Fill";
         if (wireframeMode) {modeText = "Wireframe";}
 
         String[] lines = new String[]{
-                "Ovládání - Kamera:",
+                "Shift + V: Kamera mód ",
                 "  WSAD  : pohyb dopředu, dozadu, vlevo, vpravo",
-                "  QE    : pohyb nahoru, dolu",
-                "  LMB/MMB   : rozhlížení myší",
+                "  Space, Shift : pohyb nahoru, dolu",
+                "  LMB/MMB : rozhlížení myší",
                 "  P     : přepínání Ortogonální/Perspektiva",
-                "Ovládání - Objekty:",
-                "  1/2/3/4 : Krychle / Válec / Koule / Světlo",
-                "  Šípky : posun zvoleného objektu po X/Y",
-                "  PgUp/PgDn : posun zvoleného objektu po Z",
-                "  +/-   : zvětšení/zmenšení zvoleného objektu",
-                "  X/Y/Z : otáčení kolem osy X/Y/Z",
-                "  R     : vrátit objekty na počatečnou pozici",
                 "  M     : přepínání Wireframe/Fill (aktuálně: " + modeText + ")",
-                "  T     : zapinání textury",
-                "  B     : animace pohybu osvětlení",
-                "  C     : změna barvy osvětlení",
+                "  T     : přepinání textury",
+                "",
+                "Shift + R: mód rotace",
+                "  X/Y/Z : otáčení kolem osy X/Y/Z",
+                "  Shift + X/Y/Z : opačná rotace",
+                "",
+                "Shift + T: mód posunu",
+                "  X/Y/Z : posouvání v součadnicích X/Y/Z",
+                "  Shift + X/Y/Z : opačný posun",
+                "",
+                "Shift + H: mód škálování",
+                "  X/Y/Z : škálování v součadnicích X/Y/Z",
+                "  Shift + X/Y/Z : opačné škálování",
+                "  Ctrl + X/Y/Z : škálování celého objektu",
+                "",
+                "Shift + L: mód světla:",
+                "  B : animace pohybu osvětlení",
+                "  C : změna barvy osvětlení",
+                "",
+                "Shift + K: mód výběru",
+                "  1/2/3/4 : Krychle / Válec / Koule / Světlo",
+                "",
+                "Shift + E     : vrátit objekty na počatečnou pozici",
         };
 
         for (String s : lines) {

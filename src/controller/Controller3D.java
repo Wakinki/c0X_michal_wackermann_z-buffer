@@ -21,69 +21,52 @@ public class Controller3D implements Controller {
     private TriangleRasterizer triangleRasterizer;
     private LineRasterizerZBuffer lineRasterizer;
 
-    private Scene scene;
+    private LightAnimator lightAnimator;
 
+    private Scene scene;
+    private TransformController manipulator;
 
     private Camera camera;
-
-
-    // Solids
-
-    private Solid selectedSolid;
-    private Col selectedSolidColor;
-
-    private Vec3D sceneTranslate = new Vec3D();
-    private Vec3D sceneRotate = new Vec3D();
-    private Vec3D sceneScale = new Vec3D(1);
 
     private ControllState currentState;
 
     private final ControllState DEFAULT_STATE = new CameraState(this);
-    private static final double CAM_STEP = 0.15;
-    private static final double MOUSE_SENS = 0.005;
-    private static final double MOVE_STEP = 0.1;
-    private static final double ROT_STEP = Math.toRadians(5);
-    private static final double SCALE_STEP = 1.1;
-    private int lastMouseX, lastMouseY;
 
 
 
     public Controller3D(Panel panel) {
         this.panel = panel;
 
-
-        initObjects(panel.getRaster());
+        initObjects(panel);
         initListeners(panel);
-        update();
+        drawScene();
     }
 
 
-
-    public void initObjects(Raster raster) {
-
-        zBuffer = new ZBuffer(panel.getRaster());
-
-        lineRasterizer = new LineRasterizerZBuffer(zBuffer);
-        lineRasterizer.setColor(0x00ff00);
-        renderer3D = new Renderer3D(lineRasterizer, triangleRasterizer, panel, camera.getViewMatrix(), scene.getProj());
+    public void initObjects(Panel panel) {
         scene = new Scene(panel.getRaster().getWidth(), panel.getRaster().getHeight());
-
-        renderer3D = new Renderer3D(lineRasterizer, triangleRasterizer, panel, camera.getViewMatrix(), scene.getProj());
-
-        currentState = DEFAULT_STATE;
-
-
-
-        selectedSolid = null;
-        selectedSolidColor = null;
-
-
 
         camera = new Camera()
                 .withPosition(new Vec3D(1, -2, 1.5))
                 .withAzimuth(Math.toRadians(110))
                 .withZenith(Math.toRadians(-25))
                 .withFirstPerson(true);
+
+        zBuffer = new ZBuffer(panel.getRaster());
+
+        lineRasterizer = new LineRasterizerZBuffer(zBuffer);
+        triangleRasterizer = new TriangleRasterizer(zBuffer);
+        renderer3D = new Renderer3D(lineRasterizer, triangleRasterizer, panel, camera.getViewMatrix(), scene.getProj());
+        renderer3D.setLight(scene.getLight());
+
+        lightAnimator = new LightAnimator(scene.getLight(), this::drawScene);
+        manipulator = new TransformController(scene.getManipulableSolids(), scene.getBaseModels(), 0);
+
+        currentState = DEFAULT_STATE;
+
+
+
+        panel.setWireframeMode(renderer3D.isWireframeMode());
     }
 
     @Override
@@ -92,17 +75,17 @@ public class Controller3D implements Controller {
             @Override
             public void keyPressed(KeyEvent e) {
                 currentState.onKeyPressed(e);
-                switch (e.getKeyCode()) {
-                    case KeyEvent.VK_C -> hardClear();
-                    case KeyEvent.VK_R -> setMode(Mode.ROTATE);
-                    case KeyEvent.VK_T -> setMode(Mode.TRANSLATE);
-                    case KeyEvent.VK_H -> setMode(Mode.ZOOM);
-                    case KeyEvent.VK_V -> setMode(Mode.CAMERA);
-                    case KeyEvent.VK_K -> setMode(Mode.SELECTION);
-                    case KeyEvent.VK_P -> {
-                        scene.setProjection(!scene.isPerspective());
-                        renderer3D.setProjection(scene.getProj());
-                        update();
+
+                if(e.isShiftDown()){
+                    switch (e.getKeyCode()) {
+                        case KeyEvent.VK_C -> lightAnimator.randomizeColor();
+                        case KeyEvent.VK_R -> setMode(Mode.ROTATE);
+                        case KeyEvent.VK_T -> setMode(Mode.TRANSLATE);
+                        case KeyEvent.VK_H -> setMode(Mode.ZOOM);
+                        case KeyEvent.VK_V -> setMode(Mode.CAMERA);
+                        case KeyEvent.VK_K -> setMode(Mode.SELECTION);
+                        case KeyEvent.VK_L -> setMode(Mode.LIGHT);
+                        case KeyEvent.VK_E -> manipulator.resetActive();
                     }
                 }
             }
@@ -142,8 +125,8 @@ public class Controller3D implements Controller {
             @Override
             public void componentResized(ComponentEvent e) {
                 update();
-//                panel.resize();
-                initObjects(panel.getRaster());
+
+                initObjects(panel);
             }
         });
     }
@@ -164,11 +147,12 @@ public class Controller3D implements Controller {
             case TRANSLATE -> setState(new TranslateState(this));
             case ZOOM -> setState(new ScaleState(this));
             case CUT -> setState(DEFAULT_STATE);
+            case LIGHT -> setState(new LightState(this));
             case SELECTION -> setState(new SelectState(this));
         }
     }
 
-    private void update() {
+    public void update() {
         renderer3D.setView(camera.getViewMatrix());
     }
 
@@ -189,7 +173,7 @@ public class Controller3D implements Controller {
         renderer3D.draw(solid.getParts(), solid.getIb(), solid.getVb());
     }
 
-    private void drawScene() {
+    public void drawScene() {
         panel.getRaster().clear();
         zBuffer.clear();
 
@@ -207,53 +191,31 @@ public class Controller3D implements Controller {
     }
 
 
-
-    public Solid getSelectedSolid() {
-        return selectedSolid;
-    }
-
-    public Vec3D getSceneTranslate() {
-        return sceneTranslate;
-    }
-
-    public void setSceneTranslate(Vec3D sceneTranslate) {
-        this.sceneTranslate = sceneTranslate;
-    }
-
-    public Vec3D getSceneRotate() {
-        return sceneRotate;
-    }
-
-    public void setSceneRotate(Vec3D sceneRotate) {
-        this.sceneRotate = sceneRotate;
-    }
-
-    public Vec3D getSceneScale() {
-        return sceneScale;
-    }
-
-    public void setSceneScale(Vec3D sceneScale) {
-        this.sceneScale = sceneScale;
-    }
-
-    public void setSelectedSolid(Solid selectedSolid) {
-        this.selectedSolid = selectedSolid;
-    }
-
-    public Col getSelectedSolidColor() {
-        return selectedSolidColor;
-    }
-
-    public void setSelectedSolidColor(Col selectedSolidColor) {
-        this.selectedSolidColor = selectedSolidColor;
-    }
-
-
     public Camera getCamera() {
         return camera;
     }
 
     public void setCamera(Camera camera) {
         this.camera = camera;
+    }
+
+    public TransformController getManipulator() {
+        return manipulator;
+    }
+
+    public Scene getScene() {
+        return scene;
+    }
+
+    public LightAnimator getLightAnimator() {
+        return lightAnimator;
+    }
+
+    public Renderer3D getRenderer3D() {
+        return renderer3D;
+    }
+
+    public Panel getPanel() {
+        return panel;
     }
 }

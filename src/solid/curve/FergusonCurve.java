@@ -15,7 +15,7 @@ public class FergusonCurve extends Solid {
     public FergusonCurve(Point3D p0, Point3D p1, Point3D p2, Point3D p3, int steps, Col color) {
         this.p0 = p0; this.p1 = p1; this.p2 = p2; this.p3 = p3;
         this.steps = steps;
-        this.color = color;
+
         generateCurve();
         updateModel();
     }
@@ -42,7 +42,7 @@ public class FergusonCurve extends Solid {
                     + p2.getY()*(-2*t*t*t + 3*t*t) + p3.getY()*(t*t*t - t*t);
             double z = p0.getZ()*(2*t*t*t - 3*t*t + 1) + p1.getZ()*(t*t*t - 2*t*t + t)
                     + p2.getZ()*(-2*t*t*t + 3*t*t) + p3.getZ()*(t*t*t - t*t);
-            vb.add(new Point3D(x, y, z));
+//            vb.add(new Point3D(x, y, z));
             if (i > 0) { ib.add(i-1); ib.add(i); }
         }
     }

@@ -13,7 +13,7 @@ public class CoonsCurve extends Solid {
     public CoonsCurve(Point3D p0, Point3D p1, Point3D p2, Point3D p3, int steps, Col color) {
         this.p0 = p0; this.p1 = p1; this.p2 = p2; this.p3 = p3;
         this.steps = steps;
-        this.color = color;
+
         generateCurve();
         updateModel();
     }
@@ -40,7 +40,7 @@ public class CoonsCurve extends Solid {
             double x = (1-t)*p0.getX() + t*p3.getX() + t*(1-t)*( (1-t)*(p1.getX()-p0.getX()) + t*(p2.getX()-p3.getX()) );
             double y = (1-t)*p0.getY() + t*p3.getY() + t*(1-t)*( (1-t)*(p1.getY()-p0.getY()) + t*(p2.getY()-p3.getY()) );
             double z = (1-t)*p0.getZ() + t*p3.getZ() + t*(1-t)*( (1-t)*(p1.getZ()-p0.getZ()) + t*(p2.getZ()-p3.getZ()) );
-            vb.add(new Point3D(x, y, z));
+            //vb.add(new Point3D(x, y, z));
             if (i > 0) { ib.add(i-1); ib.add(i); }
         }
     }

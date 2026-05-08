@@ -1,6 +1,8 @@
 package state;
 
 import controller.Controller3D;
+import renderer.Renderer3D;
+import solid.Scene;
 
 import java.awt.event.KeyEvent;
 import java.awt.event.MouseEvent;
@@ -11,6 +13,7 @@ public class CameraState extends ControllState{
 
 
     private static final double MOUSE_SENSITIVITY = 0.005;
+    private static final double CAM_STEP = 0.15;
 
     public CameraState(Controller3D ctrl) {
         super(ctrl);
@@ -53,27 +56,28 @@ public class CameraState extends ControllState{
     @Override
     public void onKeyPressed(KeyEvent e) {
        switch (e.getKeyCode()){
-           case KeyEvent.VK_W -> ctrl.setForward(true);
-           case KeyEvent.VK_S -> ctrl.setBackward(true);
-           case KeyEvent.VK_A -> ctrl.setLeft(true);
-           case KeyEvent.VK_D -> ctrl.setRight(true);
-           case KeyEvent.VK_SHIFT -> ctrl.setDown(true);
-           case KeyEvent.VK_SPACE -> ctrl.setUp(true);
+           case KeyEvent.VK_W -> ctrl.setCamera(ctrl.getCamera().forward(CAM_STEP));
+           case KeyEvent.VK_S -> ctrl.setCamera(ctrl.getCamera().backward(CAM_STEP));
+           case KeyEvent.VK_A -> ctrl.setCamera(ctrl.getCamera().left(CAM_STEP));
+           case KeyEvent.VK_D -> ctrl.setCamera(ctrl.getCamera().right(CAM_STEP));
+           case KeyEvent.VK_SHIFT -> ctrl.setCamera(ctrl.getCamera().down(CAM_STEP));
+           case KeyEvent.VK_SPACE -> ctrl.setCamera(ctrl.getCamera().up(CAM_STEP));
+           case KeyEvent.VK_P -> {
+               Scene scene = ctrl.getScene();
+
+               scene.setProjection(!scene.isPerspective());
+               ctrl.getRenderer3D().setProjection(scene.getProj());
+           }
+           case KeyEvent.VK_M -> {
+               Renderer3D renderer3D =  ctrl.getRenderer3D();
+               renderer3D.toggleRenderMode();
+               ctrl.getPanel().setWireframeMode(renderer3D.isWireframeMode());
+           }
+           case KeyEvent.VK_T -> {
+               ctrl.getManipulator().getActive().toggleTexture();
+           }
        }
         ctrl.update();
-    }
-
-    @Override
-    public void onKeyReleased(KeyEvent e) {
-        switch (e.getKeyCode()){
-            case KeyEvent.VK_W -> ctrl.setForward(false);
-            case KeyEvent.VK_S -> ctrl.setBackward(false);
-            case KeyEvent.VK_A -> ctrl.setLeft(false);
-            case KeyEvent.VK_D -> ctrl.setRight(false);
-            case KeyEvent.VK_SHIFT -> ctrl.setDown(false);
-            case KeyEvent.VK_SPACE -> ctrl.setUp(false);
-        }
-
     }
 
     @Override

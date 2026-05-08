@@ -28,7 +28,6 @@ public class ParametricCurve extends Solid {
         this.tStart = tStart;
         this.tEnd = tEnd;
         this.steps = steps;
-        this.color = color;
 
         generateCurve();
         updateModel();
@@ -41,7 +40,7 @@ public class ParametricCurve extends Solid {
         // generování bodů podle parametrické funkce
         for (int i = 0; i <= steps; i++) {
             double t = tStart + i * (tEnd - tStart) / steps;
-            vb.add(curveFunction.apply(t));
+            //vb.add(curveFunction.apply(t));
         }
 
         // spojení bodů lineárními segmenty

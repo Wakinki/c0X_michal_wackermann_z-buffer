@@ -1,6 +1,7 @@
 package state;
 
 import controller.Controller3D;
+import controller.TransformController;
 import solid.Solid;
 import transforms.Vec3D;
 
@@ -14,66 +15,26 @@ public class ScaleState extends ControllState {
         super(ctrl);
     }
 
-    @Override
-    public void onMousePressed(MouseEvent e) {
-        super.onMousePressed(e);
-    }
-
-    @Override
-    public void onMouseReleased(MouseEvent e) {
-        super.onMouseReleased(e);
-    }
-
-    @Override
-    public void onMouseMoved(MouseEvent e) {
-        super.onMouseMoved(e);
-    }
-
-    @Override
-    public void onMouseDragged(MouseEvent e) {
-        super.onMouseDragged(e);
-    }
 
     @Override
     public void onKeyPressed(KeyEvent e) {
-        Solid s = ctrl.getSelectedSolid();
-
+        TransformController manipulator = ctrl.getManipulator();
 
         float delta = e.isShiftDown() ? -SCALE_RATE : SCALE_RATE;
 
-
-        if (s != null) {
-            Vec3D scale = s.getScale();
-
+        if(e.isControlDown()){
+           switch (e.getKeyCode()) {
+               case KeyEvent.VK_X, KeyEvent.VK_Y, KeyEvent.VK_Z -> manipulator.scale(delta);
+           }
+        }else {
             switch (e.getKeyCode()) {
-                case KeyEvent.VK_X -> s.setScale(scale.withX(scale.getX() + delta));
-                case KeyEvent.VK_Y -> s.setScale(scale.withY(scale.getY() + delta));
-                case KeyEvent.VK_Z -> s.setScale(scale.withZ(scale.getZ() + delta));
-            }
-        } else {
-            Vec3D scale = ctrl.getSceneScale();
-
-            switch (e.getKeyCode()) {
-                case KeyEvent.VK_X -> ctrl.setSceneScale(scale.withX(scale.getX() + delta));
-                case KeyEvent.VK_Y -> ctrl.setSceneScale(scale.withY(scale.getY() + delta));
-                case KeyEvent.VK_Z -> ctrl.setSceneScale(scale.withZ(scale.getZ() + delta));
+                case KeyEvent.VK_X -> manipulator.scaleX(delta);
+                case KeyEvent.VK_Y -> manipulator.scaleY(delta);
+                case KeyEvent.VK_Z -> manipulator.scaleZ(delta);
             }
         }
+
         ctrl.update();
     }
 
-    @Override
-    public void onKeyReleased(KeyEvent e) {
-        super.onKeyReleased(e);
-    }
-
-    @Override
-    public void onEnterState() {
-        super.onEnterState();
-    }
-
-    @Override
-    public void onExitState() {
-        super.onExitState();
-    }
 }

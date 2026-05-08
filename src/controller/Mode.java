@@ -6,5 +6,6 @@ public enum Mode {
     ZOOM,
     SELECTION,
     CUT,
-    CAMERA
+    CAMERA,
+    LIGHT
 }
