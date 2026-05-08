@@ -1,12 +1,15 @@
 package renderer;
 
 import model.Line;
+import model.Light;
 import objectdata.Part;
 import objectdata.TopologyType;
 import objectdata.Vertex;
 import rasterize.LineRasterizer;
 import rasterize.TriangleRasterizer;
-import shaders.TextureMapper;
+import shaders.Shader;
+import shaders.ShaderPhongAmbientDiffuse;
+import textures.TextureMapper;
 import transforms.*;
 import utils.Math3DUtils;
 import view.Panel;
@@ -14,51 +17,98 @@ import view.Panel;
 import java.util.List;
 
 /**
- * Třída Renderer3D převádí 3D objekty na 2D úsečky a trojúhelníky na obrazovce.
- * 1) Vezme všechna primitiva objektu z index bufferu (IB).
- *    - pro úsečky bere dvojice indexů,
- *    - pro trojúhelníky bere trojice indexů,
- *    které ukazují do vertex bufferu (VB).
- * 2) Pro každý vrchol provede transformační řetězec:
- *    - model (modelovací transformace): model space -> world space
- *    - view  (pohledová transformace): world space -> view space
- *    - proj  (projekce): view space -> clip space
- * 3) Provede ořezání podle near plane v clip prostoru:
- *    - u úsečky vykreslí viditelnou část, případně dopočítá průsečík s near plane,
- *    - u trojúhelníku podle počtu viditelných vrcholů primitivum zahodí,
- *      nebo vytvoří jeden či dva ořezané trojúhelníky.
- * 4) Provede dehomogenizaci:
- *    - po projekci jsou body v homogenních souřadnicích (x, y, z, w),
- *    - před dělením se kontroluje, že w není skoro nula (EPS_W), aby nevzniklo dělení nulou.
- * 5) Převede body z normalizovaných souřadnic (NDC) do souřadnic okna (screen space):
- *    - přepočítá rozsah <-1,1> na pixely podle aktuální šířky a výšky panelu,
- *    - otočí osu Y (protože v obrazovce roste Y dolů).
- * 6) Vytvoří 2D úsečku pomocí lineRasterizeru nebo trojúhelník pomocí triangleRasterizeru.
+ * Converts 3D objects to 2D lines and triangles on screen.
+ * The rendering pipeline performs the following steps:
+ * <ol>
+ *   <li>Takes all primitives from the object's index buffer (IB):
+ *       <ul>
+ *         <li>for lines: takes pairs of indices,</li>
+ *         <li>for triangles: takes triples of indices,</li>
+ *       </ul>
+ *       which point to the vertex buffer (VB).</li>
+ *   <li>For each vertex, performs the transformation pipeline:
+ *       <ul>
+ *         <li>model: model space -> world space,</li>
+ *         <li>view: world space -> view space,</li>
+ *         <li>projection: view space -> clip space.</li>
+ *       </ul></li>
+ *   <li>Performs clipping against the near plane in clip space:
+ *       <ul>
+ *         <li>for lines: draws the visible part, possibly calculating intersection with near plane,</li>
+ *         <li>for triangles: depending on visible vertices, discards the primitive or creates one or two clipped triangles.</li>
+ *       </ul></li>
+ *   <li>Performs dehomogenization:
+ *       <ul>
+ *         <li>after projection, points are in homogeneous coordinates (x, y, z, w),</li>
+ *         <li>before division, checks that w is not nearly zero (EPS_W) to avoid division by zero.</li>
+ *       </ul></li>
+ *   <li>Converts points from normalized coordinates (NDC) to window coordinates (screen space):
+ *       <ul>
+ *         <li>recalculates range <-1,1> to pixels according to current panel width and height,</li>
+ *         <li>flips the Y axis (because in screen coordinates Y increases downward).</li>
+ *       </ul></li>
+ *   <li>Creates 2D line using lineRasterizer or triangle using triangleRasterizer.</li>
+ * </ol>
  */
 public class Renderer3D implements GPURenderer {
 
-    public enum RenderMode {WIREFRAME, FILL}
+    /** Rendering mode for the renderer. */
+    public enum RenderMode {
+        /** Render only wireframe (lines). */
+        WIREFRAME,
 
+        /** Render filled triangles. */
+        FILL
+    }
+
+    /** Rasterizer for line primitives. */
     private final LineRasterizer lineRasterizer;
+
+    /** Panel for displaying the rendered output. */
     private final Panel panel;
-    private Mat4 model, view, projection;
+
+    /** Model transformation matrix (model space -> world space). */
+    private Mat4 model;
+
+    /** View transformation matrix (world space -> view space). */
+    private Mat4 view;
+
+    /** Projection matrix (view space -> clip space). */
+    private Mat4 projection;
+
+    /** Rasterizer for triangle primitives. */
     private final TriangleRasterizer triangleRasterizer;
 
+    /** Current rendering mode. */
     private RenderMode renderMode = RenderMode.FILL;
 
+    /** Minimum w value to prevent division by zero during dehomogenization. */
     private static final double EPS_W = 1e-10;
+
+    /** Clipper for near plane clipping. */
     private final Clipper clipper = new Clipper(EPS_W);
 
-    private shaders.Shader litShader =
+    /** Shader for lit rendering. */
+    private Shader litShader =
             (a, b, c, wA, wB, wC) -> a.getCol().mul(wA)
                     .add(b.getCol().mul(wB))
                     .add(c.getCol().mul(wC));
 
-    private final shaders.Shader unlitShader =
+    /** Shader for unlit rendering. */
+    private final Shader unlitShader =
             (a, b, c, wA, wB, wC) -> a.getCol().mul(wA)
                     .add(b.getCol().mul(wB))
                     .add(c.getCol().mul(wC));
 
+    /**
+     * Creates a new 3D renderer.
+     *
+     * @param lineRasterizer the line rasterizer to use
+     * @param triangleRasterizer the triangle rasterizer to use
+     * @param panel the panel for displaying the output
+     * @param view the view transformation matrix
+     * @param projection the projection matrix
+     */
     public Renderer3D(LineRasterizer lineRasterizer, TriangleRasterizer triangleRasterizer,
                       Panel panel, Mat4 view, Mat4 projection) {
         this.lineRasterizer = lineRasterizer;
@@ -71,11 +121,20 @@ public class Renderer3D implements GPURenderer {
         this.projection = projection;
     }
 
-
-    public void setLight(model.Light light) {
-        this.litShader = new shaders.ShaderPhongAmbientDiffuse(light, 0.2);
+    /**
+     * Sets the light source for this renderer.
+     *
+     * @param light the light source to use for lighting calculations
+     */
+    public void setLight(Light light) {
+        this.litShader = new ShaderPhongAmbientDiffuse(light, 0.2);
     }
 
+    /**
+     * Enables or disables lighting.
+     *
+     * @param enabled true to enable lighting, false to disable
+     */
     public void setLightingEnabled(boolean enabled) {
         triangleRasterizer.setShader(enabled ? litShader : unlitShader);
     }
@@ -85,15 +144,30 @@ public class Renderer3D implements GPURenderer {
         drawParts(parts, ib, vb, false);
     }
 
+    /**
+     * Draws axes, ignoring the current render mode.
+     *
+     * @param parts the parts to draw
+     * @param ib the index buffer
+     * @param vb the vertex buffer
+     */
     public void drawAxes(List<Part> parts, List<Integer> ib, List<Vertex> vb) {
         drawParts(parts, ib, vb, true);
     }
 
     /**
-     * Zpracování jednotlivých částí objektu podle topologie.
-     * Podle topologie se z ib vezmeme:
-     * - dvojice indexů pro úsečky,
-     * - trojice indexů pro trojúhelníky.
+     * Processes individual parts of the object according to topology.
+     * From the index buffer, takes:
+     * <ul>
+     *   <li>pairs of indices for lines,</li>
+     *   <li>triples of indices for triangles,</li>
+     * </ul>
+     * which point to the vertex buffer.
+     *
+     * @param parts the parts to process
+     * @param ib the index buffer
+     * @param vb the vertex buffer
+     * @param ignoreRenderMode if true, ignores the current render mode
      */
     private void drawParts(List<Part> parts, List<Integer> ib, List<Vertex> vb, boolean ignoreRenderMode) {
         for (Part part : parts) {
@@ -114,7 +188,12 @@ public class Renderer3D implements GPURenderer {
     }
 
     /**
-     * Zpracování části reprezentované seznamem trojúhelníků.
+     * Processes a part represented by a list of triangles.
+     *
+     * @param ib the index buffer
+     * @param vb the vertex buffer
+     * @param start the starting index in the index buffer
+     * @param count the number of triangles
      */
     private void drawTrianglePart(List<Integer> ib, List<Vertex> vb, int start, int count) {
         int end = start + count * 3;
@@ -128,7 +207,12 @@ public class Renderer3D implements GPURenderer {
     }
 
     /**
-     * Zpracování části reprezentované seznamem úseček.
+     * Processes a part represented by a list of line segments.
+     *
+     * @param ib the index buffer
+     * @param vb the vertex buffer
+     * @param start the starting index in the index buffer
+     * @param count the number of line segments
      */
     private void drawLinePart(List<Integer> ib, List<Vertex> vb, int start, int count) {
         int end = start + count * 2;
@@ -140,39 +224,46 @@ public class Renderer3D implements GPURenderer {
         }
     }
 
-    /** Vykreslení hran objektů s ořezáním podle near plane.
-     * Postup:
-     * 1) transformace vrcholů do clip space,
-     * 2) ořezání podle z před dehomogenizací,
-     * 3) dehomogenizace,
-     * 4) transformace do okna,
-     * 5) rasterizace úsečky.
+    /**
+     * Draws edges with clipping against the near plane.
+     * Procedure:
+     * <ol>
+     *   <li>transform vertices to clip space,</li>
+     *   <li>clip against z before dehomogenization,</li>
+     *   <li>dehomogenize,</li>
+     *   <li>transform to window coordinates,</li>
+     *   <li>rasterize the line segment.</li>
+     * </ol>
+     *
+     * @param vb the vertex buffer
+     * @param i1 index of the first vertex
+     * @param i2 index of the second vertex
      */
     private void drawEdge(List<Vertex> vb, int i1, int i2) {
         Vertex v1 = vb.get(i1);
         Vertex v2 = vb.get(i2);
 
-        // Modelovací transformace (model) = model space -> world space
-        // Pohledová tranformace (view) = world space -> view space
-        // Projekční tranformace = view space -> clip space
+        // Model transformation (model) = model space -> world space
+        // View transformation (view) = world space -> view space
+        // Projection transformation = view space -> clip space
         Vertex a = transformToClip(v1);
         Vertex b = transformToClip(v2);
 
-        // Ořezání podle near plane z = 0 před dehomogenizací
+        // Clipping against near plane z = 0 before dehomogenization
         Vertex[] clipped = clipper.clipLineNear(a, b);
         if (clipped == null) return;
 
         a = clipped[0];
         b = clipped[1];
 
-        // dehomogenizace - kontrola dělení nulou
+        // Dehomogenization - check for division by zero
         if (Math.abs(a.getW()) < EPS_W || Math.abs(b.getW()) < EPS_W) return;
 
-        // dehomogenizace
+        // Dehomogenization
         Point3D pointA = a.getPosition().mul(1 / a.getW());
         Point3D pointB = b.getPosition().mul(1 / b.getW());
 
-        // Transformace do okna obrazovky = NDC -> screen space
+        // Transformation to window coordinates = NDC -> screen space
         Vec3D vecA = transformToWindow(pointA);
         Vec3D vecB = transformToWindow(pointB);
 
@@ -193,7 +284,13 @@ public class Renderer3D implements GPURenderer {
         lineRasterizer.rasterize(new Line(x1, y1, z1, x2, y2, z2, rgb));
     }
 
-    /** Rasterizace již ořezaného trojúhelníku. */
+    /**
+     * Rasterizes an already clipped triangle.
+     *
+     * @param a the first vertex of the triangle
+     * @param b the second vertex of the triangle
+     * @param c the third vertex of the triangle
+     */
     private void rasterizeClippedTriangle(Vertex a, Vertex b, Vertex c) {
         if (Math.abs(a.getW()) < EPS_W || Math.abs(b.getW()) < EPS_W || Math.abs(c.getW()) < EPS_W) return;
 
@@ -221,6 +318,14 @@ public class Renderer3D implements GPURenderer {
         triangleRasterizer.rasterize(va, vb, vc);
     }
 
+    /**
+     * Draws a triangle with clipping.
+     *
+     * @param vb the vertex buffer
+     * @param i1 index of the first vertex
+     * @param i2 index of the second vertex
+     * @param i3 index of the third vertex
+     */
     private void drawTriangle(List<Vertex> vb, int i1, int i2, int i3) {
         Vertex v1 = vb.get(i1);
         Vertex v2 = vb.get(i2);
@@ -230,7 +335,9 @@ public class Renderer3D implements GPURenderer {
         Vertex bClip = transformToClip(v2);
         Vertex cClip = transformToClip(v3);
 
-        if (clipper.triangleFullyOutsideClip(aClip, bClip, cClip)) {return;}
+        if (clipper.triangleFullyOutsideClip(aClip, bClip, cClip)) {
+            return;
+        }
 
         if (clipper.triangleFullyInsideClip(aClip, bClip, cClip)) {
             rasterizeClippedTriangle(aClip, bClip, cClip);
@@ -242,6 +349,13 @@ public class Renderer3D implements GPURenderer {
         }
     }
 
+    /**
+     * Transforms a vertex to clip space.
+     * Applies model, view, and projection transformations.
+     *
+     * @param v the vertex to transform
+     * @return the transformed vertex in clip space
+     */
     private Vertex transformToClip(Vertex v) {
         Point3D worldPos = v.getPosition().mul(model);
         Point3D clipPos = worldPos.mul(view).mul(projection);
@@ -250,6 +364,12 @@ public class Renderer3D implements GPURenderer {
         return new Vertex(clipPos, v.getCol(), worldNormal, v.getU(), v.getV(), worldPos);
     }
 
+    /**
+     * Transforms a normal vector from model space to world space.
+     *
+     * @param normal the normal vector to transform
+     * @return the transformed normal vector
+     */
     private Vec3D transformNormal(Vec3D normal) {
         Point3D p0 = new Point3D(0, 0, 0).mul(model);
         Point3D p1 = new Point3D(normal.getX(), normal.getY(), normal.getZ()).mul(model);
@@ -261,15 +381,20 @@ public class Renderer3D implements GPURenderer {
         ));
     }
 
-    /** Transformace bodů do pixelu okna = NDC -> screen space */
+    /**
+     * Transforms points from NDC to screen space (window coordinates).
+     *
+     * @param p the point in NDC
+     * @return the point in screen space
+     */
     private Vec3D transformToWindow(Point3D p) {
-        int width = panel.getRaster().getWidth(); // sirka viewportu z panelu
-        int height = panel.getRaster().getHeight(); // vyska viewportu z panelu
+        int width = panel.getRaster().getWidth(); // viewport width from panel
+        int height = panel.getRaster().getHeight(); // viewport height from panel
 
         return new Vec3D(p)
-                .mul(new Vec3D(1, -1, 1)) // otočí osu Y
-                .add(new Vec3D(1, 1, 0)) // posune z <-1,1> do <0,2>
-                .mul(new Vec3D((width - 1) / 2.0, (height - 1) / 2.0, 1)); // prepocet na pixely
+                .mul(new Vec3D(1, -1, 1)) // flip Y axis
+                .add(new Vec3D(1, 1, 0)) // shift from <-1,1> to <0,2>
+                .mul(new Vec3D((width - 1) / 2.0, (height - 1) / 2.0, 1)); // convert to pixels
     }
 
     @Override
@@ -299,6 +424,9 @@ public class Renderer3D implements GPURenderer {
         }
     }
 
+    /**
+     * Toggles between wireframe and fill render modes.
+     */
     public void toggleRenderMode() {
         if (renderMode == RenderMode.FILL) {
             renderMode = RenderMode.WIREFRAME;
@@ -307,13 +435,23 @@ public class Renderer3D implements GPURenderer {
         }
     }
 
+    /**
+     * Returns whether the renderer is in wireframe mode.
+     *
+     * @return true if in wireframe mode, false otherwise
+     */
     public boolean isWireframeMode() {
         return renderMode == RenderMode.WIREFRAME;
     }
 
+    /**
+     * Sets the texture for triangle rasterization.
+     *
+     * @param texture the texture to use
+     * @param enabled whether texture mapping should be enabled
+     */
     public void setTexture(TextureMapper texture, boolean enabled) {
         triangleRasterizer.setTexture(texture);
         triangleRasterizer.setTextureEnabled(enabled);
     }
 }
-
