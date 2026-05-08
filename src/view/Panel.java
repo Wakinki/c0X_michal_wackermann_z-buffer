@@ -22,7 +22,7 @@ public class Panel extends JPanel {
     Panel() {
         setPreferredSize(new Dimension(WIDTH, HEIGHT));
         raster = new RasterBufferedImage(WIDTH, HEIGHT);
-        raster.setClearColor(Color.BLACK.getRGB());
+//        raster.setClearColor(Color.BLACK.getRGB());
         //setLoop();
     }
 
