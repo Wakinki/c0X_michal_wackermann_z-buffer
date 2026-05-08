@@ -1,16 +1,17 @@
 package solid;
 
+import objectdata.Vertex;
 import transforms.Col;
 import transforms.Point3D;
 
 public class Arrow extends Solid {
     public Arrow() {
         // Naplnit VB
-        vb.add(new Point3D(0,0,0));
-        vb.add(new Point3D(0.8,0,0));
-        vb.add(new Point3D(0.8,0,-0.2));
-        vb.add(new Point3D(1,0,0));
-        vb.add(new Point3D(0.8,0,0.2));
+        vb.add(new Vertex(0,0,0, new Col(0xffff00)));
+        vb.add(new Vertex(0.8,0,0, new Col(0xffff00)));
+        vb.add(new Vertex(0.8,0,-0.2, new Col(0xffff00)));
+        vb.add(new Vertex(1,0,0, new Col(0xffff00)));
+        vb.add(new Vertex(0.8,0,0.2, new Col(0xffff00)));
 
         // Naplnit IB
         ib.add(0);
@@ -24,6 +25,6 @@ public class Arrow extends Solid {
 
         ib.add(3);
         ib.add(4);
-        color = new Col(0xffff00);
+
     }
 }
