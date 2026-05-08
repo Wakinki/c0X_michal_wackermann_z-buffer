@@ -82,6 +82,17 @@ public abstract class Solid {
     }
 
     /**
+     * Sets the model transformation matrix and returns the changed object reference.
+     *
+     * @param model the model matrix to set
+     * @return Solid the updated object
+     */
+    public Solid withModel(Mat4 model) {
+        this.model = model;
+        return this;
+    }
+
+    /**
      * Returns the model transformation matrix.
      * Recalculates the matrix if it is dirty.
      *
@@ -131,6 +142,17 @@ public abstract class Solid {
      */
     public void setTexture(TextureMapper texture) {
         this.texture = texture;
+    }
+
+    /**
+     * Sets the texture for this object and returns the object
+     *
+     * @param texture the texture mapper to use
+     * @return Solid object with newly set texture
+     */
+    public Solid withTexture(TextureMapper texture) {
+        this.texture = texture;
+        return this;
     }
 
     /**
